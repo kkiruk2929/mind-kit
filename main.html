@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<!-- 표시 언어 지정 -->
+<html lang="ko">
+  <head>
+    <title>개꿀사이트</title>
+
+    <!-- 반응형 뷰 포트를 사용하기 위함 -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1 user-scalable=0"
+    />
+
+    <!-- Jquery CDN 로드 : 항상 최신 버전 사용 -->
+    <script src="https://code.jquery.com/jquery-latest.min.js"></script>
+
+    <link rel="stylesheet" href="/style.css" />
+
+    <!-- sweet alert 라이브러리 -->
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <script src="/uikit.js"></script>
+
+    <!-- 내부 CSS 스타일 지정 -->
+    <style>
+      /* [html, body 영역 스타일 지정] */
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        overflow: scroll-y;
+        -webkit-overflow-scrolling: touch;
+      }
+      /* [body 스크롤바 메인 스타일 지정] */
+      body::-webkit-scrollbar {
+        width: 0px;
+        background-color: #c1c1c1;
+      }
+      /* [body 스크롤바 thumb 스타일 지정] */
+      body::-webkit-scrollbar-thumb {
+        background-color: #444444;
+      }
+      /* [body 전체 컴포넌트 공통 스타일 지정] */
+      * {
+        font-family: "Nanum Gothic", sans-serif;
+      }
+
+      /* [라디오 버튼 커스텀 스타일 변경 실시] */
+      input[type="radio"] {
+        -webkit-appearance: none;
+        width: 17px;
+        height: 17px;
+        border: 1px solid darkgray;
+        border-radius: 50%;
+        outline: none;
+        background: #ffffff;
+      }
+      input[type="radio"]:before {
+        content: "";
+        display: block;
+        width: 70%;
+        height: 70%;
+        margin: 15% auto;
+        border-radius: 50%;
+      }
+      input[type="radio"]:checked:before {
+        background: #007bff;
+      }
+
+      /* [sweet alert 커스텀 사이즈] */
+      .swal-wide {
+        width: 250px !important;
+      }
+
+      #questions {
+        margin-top: 50px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- 타이틀 레이아웃 생성 실시 -->
+    <div
+      id="i_title_container"
+      class="cDivRelativeH cDivPtagHmVisible cBgBlueMiddle"
+      style="width: 100%; height: 10%; margin: 0 auto; padding: 0; border: none"
+    >
+      <a
+        id="i_title_txt"
+        class="cPtagHmVisible cPtagFontSizeTitle cFontColorWhiteLight cFontBoldWeight cTextCenterWidthAlign"
+        href="/"
+        target="_self"
+      >
+        유형 체크
+      </a>
+    </div>
+
+    <button class="reset-questions-btn">문제 새로고침</button>
+
+    <!-- 설문조사 문제 레이아웃 -->
+    <div id="questions"></div>
+
+    <!-- 설문조사 경고 박스 레이아웃 -->
+    <div
+      id="i_warm_container"
+      class="cDivRelativeH cDivPtagHmVisible cBorderRadiusAll_10 cBgWhiteLight cBorderAllRedMiddle_1"
+      style="width: 70%; height: 8%; margin: 0 auto; padding: 5%; top: 99%"
+    >
+      <p
+        id="i_warm_txt"
+        class="cPtagHmVisible cPtagFontSizeContent cFontColorRedMiddle cFontNormalWeight cTextJustifyWidthAlign"
+      >
+        이 설문지 작성 내용에 이상이 있는 경우, 설문지를 작성한 본인이 책임을 질
+        것입니다. 이 설문지는 사용자를 위한 견본 설문지 입니다.
+      </p>
+    </div>
+
+    <!-- 제출 버튼 박스 레이아웃 -->
+    <div
+      id="i_submit_container"
+      class="cDivRelativeH cDivPtagHmVisible cBorderRadiusAll_10 cBgBlueMiddle cCursorPointer cMouseHoverBgBlueBold"
+      style="
+        width: 80%;
+        height: 7%;
+        margin: 0 auto;
+        padding: 0;
+        border: none;
+        top: 101%;
+      "
+    >
+      <p
+        id="i_submit_txt"
+        class="cPtagHmVisible cPtagFontSizeContent cFontColorWhiteLight cFontBoldWeight cTextCenterWidthAlign"
+      >
+        제출 하기
+      </p>
+    </div>
+
+    <div id="resultWrap"></div>
+
+    <!-- 공백 레이아웃 -->
+    <div
+      id="i_null_container"
+      class="cDivRelativeH cBgWhiteLight"
+      style="
+        width: 100%;
+        height: 10%;
+        margin: 0 auto;
+        padding: 0%;
+        border: none;
+        top: 101%;
+      "
+    ></div>
+
+    <script>
+      (() => {
+        function main() {
+          // 앱 셋팅
+          init();
+        }
+        main();
+
+        function init() {
+          initUi();
+          initEvents();
+        }
+
+        function initUi() {
+          // query string 가져오기
+          const userType = new URL(document.location.href).searchParams.get(
+            "userType"
+          );
+
+          // 결과 페이지 요청이라면.
+          if (Boolean(userType)) {
+            return renderAnswer(userType);
+          }
+
+          initQuestions();
+        }
+
+        async function initQuestions() {
+          // Promise와 await/async 가 무엇인지
+          const result = await fetch("/data/questions.json");
+          let questions = await result.json();
+
+          renderQuestions(document.querySelector("#questions"), questions);
+        }
+
+        function renderQuestions(rootElement, questions) {
+          let html = "";
+
+          html += questions.map((v, i) => renderQuestionItem(v, i)).join("");
+
+          rootElement.innerHTML = html;
+
+          function renderQuestionItem(question, idx) {
+            return `
+              <!-- 설문조사 문제 레이아웃 -->
+              <div
+                id="i_qna_1_container"
+                class="cDivRelativeH cBorderRadiusAll_10 cShadowBoxGray1px"
+                style="
+                  width: 80%;
+                  height: 250px;
+                  margin: 0 auto 50px auto;
+                  padding: 0;
+                  border-top: none;
+                "
+              >
+                <div
+                  id="i_qna_1_tittle"
+                  class="cDivRelativeH cBorderRadiusTop_10 cBgBlueLight"
+                  style="width: 100%; height: 50px; margin: 0 auto; padding: 0; top: 0%"
+                >
+                  <div
+                    id="i_qna_1_idx_container"
+                    class="cDivRelativeW cDivPtagHmHidden"
+                    style="
+                      width: 35px;
+                      height: 100%;
+                      margin: 0;
+                      padding: 0;
+                      border: none;
+                      left: 2%;
+                    "
+                  >
+                    <p
+                      id="i_qna_1_idx_txt"
+                      class="cPtagHmHidden cPtagFontSizeContent cFontColorWhiteLight cFontBoldWeight cTextCenterWidthAlign"
+                    >
+                      [${idx + 1}]
+                    </p>
+                  </div>
+                  <div
+                    id="i_qna_1_title_content_container"
+                    class="cDivRelativeW cDivPtagHmVisible"
+                    style="
+                      width: 80%;
+                      height: 100%;
+                      margin: 0;
+                      padding: 0;
+                      border: none;
+                      left: 3%;
+                    "
+                  >
+                    <p
+                      id="i_qna_1_title_content_txt"
+                      class="cPtagHmVisible cPtagFontSizeContent cFontColorWhiteLight cFontNormalWeight cTextJustifyWidthAlign"
+                    >
+                      ${question.title}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  id="i_qna_1_content"
+                  class="cDivRelativeH"
+                  style="width: 100%; height: 72%; margin: 0 auto; padding: 0; top: 2%"
+                >
+                  <div
+                    class="cDivRelativeH"
+                    style="
+                      width: 90%;
+                      height: 20%;
+                      margin: 0;
+                      padding: 0;
+                      top: 0%;
+                      left: 2.2%;
+                    "
+                  >
+                    <div class="cDivRelativeW" style="width: 30px; height: 100%">
+                      <input type="radio" name="qna_${idx}_group" value="${
+              question.type
+            },5" />
+                    </div>
+                    <div
+                      class="cDivRelativeW cDivPtagHmVisible"
+                      style="width: 150px; height: 20px"
+                    >
+                      <p
+                        class="cPtagHmVisible cPtagFontSizeTrail cFontColorBlackMiddle cFontNormalWeight cTextLeftWidthAlign"
+                      >
+                        매우 맞음
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    class="cDivRelativeH"
+                    style="
+                      width: 90%;
+                      height: 20%;
+                      margin: 0;
+                      padding: 0;
+                      top: 0%;
+                      left: 2.2%;
+                    "
+                  >
+                    <div class="cDivRelativeW" style="width: 30px; height: 100%">
+                      <input type="radio" name="qna_${idx}_group" value="${
+              question.type
+            },4" />
+                    </div>
+                    <div
+                      class="cDivRelativeW cDivPtagHmVisible"
+                      style="width: 150px; height: 20px"
+                    >
+                      <p
+                        class="cPtagHmVisible cPtagFontSizeTrail cFontColorBlackMiddle cFontNormalWeight cTextLeftWidthAlign"
+                      >
+                        맞음
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    class="cDivRelativeH"
+                    style="
+                      width: 90%;
+                      height: 20%;
+                      margin: 0;
+                      padding: 0;
+                      top: 0%;
+                      left: 2.2%;
+                    "
+                  >
+                    <div class="cDivRelativeW" style="width: 30px; height: 100%">
+                      <input type="radio" name="qna_${idx}_group" value="${
+              question.type
+            },3" />
+                    </div>
+                    <div
+                      class="cDivRelativeW cDivPtagHmVisible"
+                      style="width: 150px; height: 20px"
+                    >
+                      <p
+                        class="cPtagHmVisible cPtagFontSizeTrail cFontColorBlackMiddle cFontNormalWeight cTextLeftWidthAlign"
+                      >
+                        보통
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    class="cDivRelativeH"
+                    style="
+                      width: 90%;
+                      height: 20%;
+                      margin: 0;
+                      padding: 0;
+                      top: 0%;
+                      left: 2.2%;
+                    "
+                  >
+                    <div class="cDivRelativeW" style="width: 30px; height: 100%">
+                      <input type="radio" name="qna_${idx}_group" value="${
+              question.type
+            },2" />
+                    </div>
+                    <div
+                      class="cDivRelativeW cDivPtagHmVisible"
+                      style="width: 150px; height: 20px"
+                    >
+                      <p
+                        class="cPtagHmVisible cPtagFontSizeTrail cFontColorBlackMiddle cFontNormalWeight cTextLeftWidthAlign"
+                      >
+                        아님
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    class="cDivRelativeH"
+                    style="
+                      width: 90%;
+                      height: 20%;
+                      margin: 0;
+                      padding: 0;
+                      top: 0%;
+                      left: 2.2%;
+                    "
+                  >
+                    <div class="cDivRelativeW" style="width: 30px; height: 100%">
+                      <input type="radio" name="qna_${idx}_group" value="${
+              question.type
+            },1" />
+                    </div>
+                    <div
+                      class="cDivRelativeW cDivPtagHmVisible"
+                      style="width: 150px; height: 20px"
+                    >
+                      <p
+                        class="cPtagHmVisible cPtagFontSizeTrail cFontColorBlackMiddle cFontNormalWeight cTextLeftWidthAlign"
+                      >
+                        전혀아님
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        function initEvents() {
+          // click submit
+          attachEventOnClickSubmit();
+          attachEventOnClickResetQuestion();
+        }
+
+        function attachEventOnClickSubmit() {
+          document
+            .querySelector("#i_submit_container")
+            .addEventListener("click", checkAnswer);
+        }
+
+        function attachEventOnClickResetQuestion() {
+          document
+            .querySelector(".reset-questions-btn")
+            .addEventListener("click", initUi);
+        }
+
+        /* [이벤트 함수 정의] */
+        async function checkAnswer() {
+          console.log("");
+          console.log("[checkAnswer] : [start]");
+          console.log("");
+
+          // 선택한 값 배열로 가공
+          const qnaGroupVals = [];
+          for (let i in [...document.querySelectorAll("#i_qna_1_container")]) {
+            const checked = $(
+              `:input:radio[name='qna_${i}_group']:checked`
+            ).val();
+            if (Boolean(checked)) {
+              const [type, score] = checked.split(",");
+              qnaGroupVals.push({
+                idx: Number(i),
+                type,
+                score: Number(score),
+              });
+            } else {
+              qnaGroupVals.push({
+                idx: Number(i),
+                type: null,
+                score: null,
+              });
+            }
+          }
+
+          // 체크하지 않은 값들 필터링
+          const notCheckedGroups = qnaGroupVals.filter((v) => !Boolean(v.type));
+          if (notCheckedGroups.length > 0) {
+            return window.sAlert(
+              4,
+              "",
+              notCheckedGroups
+                .map((v) => `${v.idx + 1}번째 체크 안 함`)
+                .join(", ")
+            );
+          }
+
+          // 점수 합산
+          const scores = {
+            A: 0,
+            B: 0,
+            C: 0,
+            D: 0,
+            E: 0,
+            F: 0,
+          };
+          qnaGroupVals
+            .filter((v) => Boolean(v.type))
+            .forEach((v) => {
+              scores[v.type] += v.score;
+            });
+
+          let userType = "";
+          let maxScore = 0;
+          let resultStr = "";
+          for (let k in scores) {
+            resultStr += `<div><span style="font-weight: bold">${k}:</span> ${scores[k]}</div>`;
+
+            if (maxScore < scores[k]) {
+              maxScore = scores[k];
+              userType = k;
+            }
+          }
+
+          // renderAnswer(userType, resultStr);
+          window.open(
+            `${document.location.origin}/?userType=${userType}`,
+            "_self"
+          );
+        }
+
+        async function renderAnswer(userType, str = "") {
+          // 결과 설명지
+          const result = await fetch("/data/result.json");
+          const resultJson = await result.json();
+          const resultExplainStr = resultJson[userType];
+
+          str += `<h1>당신의 타입은 [${userType}]입니다!</h1>`;
+          str += `<p>${resultExplainStr}</p>`;
+
+          document.querySelector("#questions").innerHTML = str;
+        }
+      })();
+    </script>
+  </body>
+</html>
